@@ -2208,7 +2208,7 @@ endif
 if conf.get('openssl') == 1
   test_openssl_dep = dependency('openssl', required: false, version: '>= 3.0.0')
   if test_openssl_dep.found()
-    is_blocked_by_license = not get_option('version3').disabled() or get_option('gpl').disabled() or not get_option('nonfree').disabled()
+    is_blocked_by_license = get_option('version3').disabled() and not get_option('gpl').disabled() and get_option('nonfree').disabled()
     if is_blocked_by_license
       error('OpenSSL >=3.0.0 requires -Dversion3=enabled')
     endif
