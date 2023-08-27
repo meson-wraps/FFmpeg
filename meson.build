@@ -1974,12 +1974,7 @@ foreach check : all_checks
         endforeach
       elif check_type != 'pkg-config'
         foreach link_with : link_withs
-          if check_type == 'component' and not ('always-check' in opts)
-            req = get_option(opt_name)
-          else
-            req = false
-          endif
-          dep = cc.find_library(link_with, required : req)
+          dep = cc.find_library(link_with, required : false)
           found = found and dep.found()
           extra_deps += dep
         endforeach
@@ -2009,67 +2004,68 @@ foreach check : all_checks
         else
           dep = dependency(pkg_name, required : req)
         endif
-        found = dep.found() and dep.type_name() != 'internal'
+        found = dep.found()
         extra_deps += dep
       endif
     endif
-
-    if found
-      foreach header : headers
-        if header.endswith('.h')
-          prefix += '#include <@0@>\n'.format(header)
-        else
-          prefix += '#include @0@\n'.format(header)
-        endif
-
-        if not conf.has(header.underscorify())
-          has_header = cc.has_header(header, dependencies: extra_deps)
-          conf.set10(header.underscorify().to_lower(), has_header)
-          found = found and has_header
-        endif
-      endforeach
-    endif
-
-    if found
-      n_funcs_found = 0
-      foreach symbol : funcs
-        if check_type == 'header-func'
-          if cc.has_header_symbol(headers[0], symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args)
-            n_funcs_found += 1
+    if dep.type_name() != 'internal'
+      if found
+        foreach header : headers
+          if header.endswith('.h')
+            prefix += '#include <@0@>\n'.format(header)
+          else
+            prefix += '#include @0@\n'.format(header)
           endif
-        else
-          if cc.has_function(symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args)
-            n_funcs_found += 1
+
+          if not conf.has(header.underscorify())
+            has_header = cc.has_header(header, dependencies: extra_deps)
+            conf.set10(header.underscorify().to_lower(), has_header)
+            found = found and has_header
           endif
-        endif
-      endforeach
-      if has_any_func
-        found = n_funcs_found >= 1
-      else
-        found = n_funcs_found == funcs.length()
+        endforeach
       endif
-    endif
 
-    if found
-      n_defines_found = 0
-      foreach symbol : defines
-        if cc.get_define(symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args) != ''
-          n_defines_found += 1
+      if found
+        n_funcs_found = 0
+        foreach symbol : funcs
+          if check_type == 'header-func'
+            if cc.has_header_symbol(headers[0], symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args)
+              n_funcs_found += 1
+            endif
+          else
+            if cc.has_function(symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args)
+              n_funcs_found += 1
+            endif
+          endif
+        endforeach
+        if has_any_func
+          found = n_funcs_found >= 1
+        else
+          found = n_funcs_found == funcs.length()
         endif
-      endforeach
-      found = n_defines_found == defines.length()
-    endif
+      endif
 
-    if found and compiles != ''
-      found = cc.compiles('\n\n'.join([prefix, compiles]), dependencies : extra_deps, args : c_args + project_c_args, name: name)
-    endif
+      if found
+        n_defines_found = 0
+        foreach symbol : defines
+          if cc.get_define(symbol, dependencies : extra_deps, prefix: prefix, args : c_args + project_c_args) != ''
+            n_defines_found += 1
+          endif
+        endforeach
+        found = n_defines_found == defines.length()
+      endif
 
-    if found and links != ''
-      found = cc.links('\n\n'.join([prefix, links]), dependencies : extra_deps, args : c_args + project_c_args, name: name)
-    endif
+      if found and compiles != ''
+        found = cc.compiles('\n\n'.join([prefix, compiles]), dependencies : extra_deps, args : c_args + project_c_args, name: name)
+      endif
 
-    if found and type != ''
-      found = cc.has_type(type, prefix : prefix, dependencies : extra_deps, args : c_args + project_c_args)
+      if found and links != ''
+        found = cc.links('\n\n'.join([prefix, links]), dependencies : extra_deps, args : c_args + project_c_args, name: name)
+      endif
+
+      if found and type != ''
+        found = cc.has_type(type, prefix : prefix, dependencies : extra_deps, args : c_args + project_c_args)
+      endif
     endif
 
     if check_type != 'header'
